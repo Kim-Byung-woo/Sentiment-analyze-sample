@@ -1,4 +1,5 @@
 #%%
+#%%
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,146 +14,129 @@ import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출 - 코드 파일과 단어 리스트 파일 위치가 틀려서
 
-train_data = pd.read_table(file_dir + "/data/ratings_train.txt")
-test_data = pd.read_table(file_dir + "/data/ratings_test.txt")
-#%%
+train_df = pd.read_table(file_dir + "/data/ratings_train.txt")
+test_df = pd.read_table(file_dir + "/data/ratings_test.txt")
+
 # 데이터 개수 확인
-print('훈련 데이터 리뷰 개수 :',len(train_data)) # 리뷰 개수 출력
-print('테스트 데이터 리뷰 개수 :',len(test_data)) # 리뷰 개수 출력
-# %%
-# 텍스트 전처리
-# 훈련용 리뷰 데이터 중 중복값 제거
-train_data.drop_duplicates(subset=['document'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
-# 훈련용 리뷰 데이터 중 한글과 공백을 제외하고 모두 제거
-train_data['document'] = train_data['document'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
-# 훈련용 리뷰 데이터 중 모두 제거된 데이터는 Nan값으로 대체
-train_data['document'].replace('', np.nan, inplace=True)
-# 훈련용 리뷰 데이터 중 Nan값 제거
-train_data = train_data.dropna(how = 'any') # Null 값이 존재하는 행 제거
-print(train_data.isnull().values.any()) # Null 값이 존재하는지 확인
-print('전처리 후 훈련용 데이터 개수: ', len(train_data))
-
-# 테스트용 리뷰 데이터 중 중복값 제거
-test_data.drop_duplicates(subset=['document'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
-#테스트용  리뷰 데이터 중 한글과 공백을 제외하고 모두 제거
-test_data['document'] = test_data['document'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
-#테스트용  리뷰 데이터 중 모두 제거된 데이터는 Nan값으로 대체
-test_data['document'].replace('', np.nan, inplace=True)
-#테스트용  리뷰 데이터 중 Nan값 제거
-test_data = test_data.dropna(how = 'any') # Null 값이 존재하는 행 제거
-print(test_data.isnull().values.any()) # Null 값이 존재하는지 확인
-print('전처리 후 테스트용 데이터 개수: ', len(test_data))
+print('훈련 데이터 리뷰 개수 :',len(train_df)) # 리뷰 개수 출력
+print('테스트 데이터 리뷰 개수 :',len(test_df)) # 리뷰 개수 출력
 #%%
-# 토큰화
-# 토큰(Token)이란 문법적으로 더 이상 나눌 수 없는 언어요소를 뜻합니다. 텍스트 토큰화(Text Tokenization)란 말뭉치(Corpus)로부터 토큰을 분리하는 작업을 뜻합니다.
-from konlpy.tag import *
+okt = Okt()
 
-stopwords = ['의', '가', '이', '은', '들', '는', '좀', '잘', '걍', '과', '도', '를', '으로', '자', '에', '와', '한', '하다']
-
-okt = Okt() 
-X_train = [] 
-for sentence in train_data['document']: 
-    temp_X = [] 
-    temp_X = okt.morphs(sentence, stem=True) # 토큰화 
-    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
-    X_train.append(temp_X)
-
-X_test = [] 
-for sentence in test_data['document']: 
-    temp_X = [] 
-    temp_X = okt.morphs(sentence, stem=True) # 토큰화 
-    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
-    X_test.append(temp_X)
+def tokenize(doc):
+    #형태소와 품사를 join
+    return ['/'.join(t) for t in okt.pos(doc, norm=True, stem=True)]
 #%%
-# 토큰화 된 단어 정수 인코딩
-tokenizer = Tokenizer()
-tokenizer.fit_on_texts(X_train)
-print(tokenizer.word_index) # 총 단어가 43000개 넘게 존재
+train_df.isnull().any() #document에 null값이 있다.
+train_df['document'] = train_df['document'].fillna(''); #null값을 ''값으로 대체
+
+test_df.isnull().any()
+test_df['document'] = test_df['document'].fillna(''); #null값을 ''값으로 대체
 #%%
-# 단어 등장 빈도수가 3회 미만인 단어의 비중을 확인합니다.
-threshold = 3
-total_cnt = len(tokenizer.word_index) # 단어의 수
-rare_cnt = 0 # 등장 빈도수가 threshold보다 작은 단어의 개수를 카운트
-total_freq = 0 # 훈련 데이터의 전체 단어 빈도수 총 합
-rare_freq = 0 # 등장 빈도수가 threshold보다 작은 단어의 등장 빈도수의 총 합
+train_df = train_df.head(2000)
+test_df = test_df.head(100)
 
-# 단어와 빈도수의 쌍(pair)을 key와 value로 받는다.
-for key, value in tokenizer.word_counts.items():
-    total_freq = total_freq + value # 빈도수(value)를 카운팅
-
-    # 단어의 등장 빈도수가 threshold보다 작으면
-    if(value < threshold):
-        rare_cnt = rare_cnt + 1
-        rare_freq = rare_freq + value
-
-# 희귀 단어 = 등장 빈도수가 threshold 보다 작은 단어
-print('단어 집합(vocabulary)의 크기 :',total_cnt)
-print('등장 빈도가 %s번 이하인 희귀 단어의 수: %s'%(threshold - 1, rare_cnt))
-print("단어 집합에서 희귀 단어의 비율:", (rare_cnt / total_cnt)*100)
-print("전체 등장 빈도에서 희귀 단어 등장 빈도 비율:", (rare_freq / total_freq)*100) 
-
-# 전체 단어 개수 중 빈도수 2이하인 단어 개수는 제거.
-vocab_size = total_cnt - rare_cnt + 2 # 0번 패딩 토큰과 1번 OOV 토큰을 고려하여 +2
-print('단어 집합의 크기 :',vocab_size)
-
-tokenizer = Tokenizer(vocab_size, oov_token = 'OOV') # OOV: Out of Vocabulary
-tokenizer.fit_on_texts(X_train)
-X_train = tokenizer.texts_to_sequences(X_train)
-X_test = tokenizer.texts_to_sequences(X_test)
-
-y_train = np.array(train_data['label'])
-y_test = np.array(test_data['label'])
-#%%
-# 희귀 단어들로만 이루어진 샘플들 제거
-
-drop_train = [index for index, sentence in enumerate(X_train) if len(sentence) < 1] # enumerate를 활용해서 길이가 1보다 작은 샘플의 인덱스를 저장합니다.
-
-# 빈 샘플들을 제거
-X_train = np.delete(X_train, drop_train, axis=0)
-y_train = np.delete(y_train, drop_train, axis=0)
-print(len(X_train))
-print(len(y_train))
-#%%
-# 패딩
-print('리뷰의 최대 길이 :',max(len(l) for l in X_train))
-print('리뷰의 평균 길이 :',sum(map(len, X_train))/len(X_train))
-plt.hist([len(s) for s in X_train], bins=50)
-plt.xlabel('length of samples')
-plt.ylabel('number of samples')
-plt.show()
-
-def below_threshold_len(max_len, nested_list):
-  cnt = 0
-  for s in nested_list:
-    if(len(s) <= max_len):
-        cnt = cnt + 1
-  print('전체 샘플 중 길이가 %s 이하인 샘플의 비율: %s'%(max_len, (cnt / len(nested_list))*100))
-
-max_len = 35
-below_threshold_len(max_len, X_train)
-
-# %%
-# 모델 생성 및 훈련
-# LSTM 모델로 영화 리부 감성 분류
-from keras.layers import Embedding, Dense, LSTM 
-from keras.models import Sequential
-from tensorflow.keras.models import load_model
-from keras.preprocessing.sequence import pad_sequences 
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-
-model = Sequential()
-model.add(Embedding(vocab_size, 100))
-model.add(LSTM(128))
-model.add(Dense(1, activation='sigmoid'))
-
-es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=4)
-mc = ModelCheckpoint('best_model.h5', monitor='val_acc', mode='max', verbose=1, save_best_only=True)
-
-model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['acc'])
-# 모델 훈련
-history = model.fit(X_train, y_train, epochs=15, callbacks=[es, mc], batch_size=60, validation_split=0.2)
+print('훈련 데이터 리뷰 개수 :',len(train_df)) # 리뷰 개수 출력
+print('테스트 데이터 리뷰 개수 :',len(test_df)) # 리뷰 개수 출력
 
 #%%
-# 모델 검증
-loaded_model = load_model('best_model.h5')
-print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(X_test, y_test)[1]))
+import json
+if os.path.isfile(file_dir + "/data/train_docs.json"):
+    print('Json File is already')
+    with open(file_dir + "/data/train_docs.json", encoding='UTF8') as f:
+        train_docs = json.load(f)
+    with open(file_dir + "/data/test_docs.json", encoding='UTF8') as f:
+        test_docs = json.load(f)
+else:
+    train_docs = [(tokenize(row[1]), row[2]) for row in train_df.values]
+    test_docs = [(tokenize(row[1]), row[2]) for row in test_df.values]
+
+    # JSON 파일로 저장
+    with open(file_dir + "/data/train_docs.json", 'w', encoding="utf-8") as make_file:
+        json.dump(train_docs, make_file, ensure_ascii=False, indent="\t")
+    with open(file_dir + "/data/test_docs.json", 'w', encoding="utf-8") as make_file:
+        json.dump(test_docs, make_file, ensure_ascii=False, indent="\t")
+        
+from pprint import pprint
+pprint(train_docs[0])
+#%%
+tokens = [t for d in train_docs for t in d[0]]
+print("토큰개수:", len(tokens))
+
+import nltk
+text = nltk.Text(tokens, name='NMSC')
+
+#토큰개수
+print(len(text.tokens))
+
+#중복을 제외한 토큰개수
+print(len(set(text.tokens)))
+
+#출력빈도가 높은 상위 토큰 20개
+print(text.vocab().most_common(20))
+
+
+from matplotlib import font_manager, rc
+plt.rc('font', family='Malgun Gothic') # Window 의 한글 폰트 설정
+plt.figure(figsize=(20,10))
+text.plot(20)
+
+#%%
+FREQUENCY_COUNT = 1000; #시간적 여유가 있다면 10000개를 해보도록~
+selected_words = [f[0] for f in text.vocab().most_common(FREQUENCY_COUNT)]
+
+
+#단어리스트 문서에서 상위 1000개들중 포함되는 단어들이 개수
+def term_frequency(doc):
+    return [doc.count(word) for word in selected_words]
+
+#문서에 들어가는 단어 개수
+x_train = [term_frequency(d) for d,_ in train_docs]
+x_test = [term_frequency(d) for d,_ in test_docs]
+#라벨(1 or 0)
+y_train = [c for _,c in train_docs]
+y_test = [c for _,c in test_docs]
+
+
+x_train = np.asarray(x_train).astype('float32')
+x_test = np.asarray(x_test).astype('float32')
+
+y_train = np.asarray(y_train).astype('float32')
+y_test = np.asarray(y_test).astype('float32')
+
+
+#%%
+#학습 프로세스 설정
+import tensorflow as tf
+
+#레이어 구성
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(FREQUENCY_COUNT,)),
+    tf.keras.layers.Dense(64, activation='relu'),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer=tf.keras.optimizers.RMSprop(lr=0.001),
+    loss=tf.keras.losses.binary_crossentropy,
+    metrics=[tf.keras.metrics.binary_accuracy])
+
+#학습 데이터로 학습
+model.fit(x_train, y_train, epochs=10, batch_size=512)
+
+# 모델 평가
+results = model.evaluate(x_test, y_test)
+
+# 모델 예측
+review = "개노잼이네"
+token = tokenize(review)
+tfq = term_frequency(token)
+data = np.expand_dims(np.asarray(tfq).astype('float32'), axis=0)
+score = float(model.predict(data))
+if(score > 0.5):
+        print(f"{review} ==> 긍정 ({round(score*100)}%)")
+else:
+    print(f"{review} ==> 부정 ({round((1-score)*100)}%)")
+
+#%%
+#모델 저장
+model.save('movie_review_model.h5')

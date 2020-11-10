@@ -99,30 +99,3 @@ predict_labels = np.argmax(predict, axis=1)
 original_labels = np.argmax(y_test, axis=1)
 for i in range(30):
     print("기사제목 : ", test_data['title'].iloc[i], "/\t 원래 라벨 : ", original_labels[i], "/\t예측한 라벨 : ", predict_labels[i])
-
-
-# %%
-def tokenize(doc):
-    # norm은 정규화, stem은 근어로 표시하기를 나타냄
-    return ['/'.join(t) for t in okt.pos(doc, norm=True, stem=True)]
-#%%
-import nltk
-text = nltk.Text(tokens, name='NMSC')
-
-selected_words = [f[0] for f in text.vocab().most_common(10000)]
-
-def term_frequency(doc):
-    return [doc.count(word) for word in selected_words]
-#%%
-def predict_pos_neg(review):
-    token = tokenize(review)
-    tf = term_frequency(token)
-    data = np.expand_dims(np.asarray(tf).astype('float32'), axis=0)
-    score = float(model.predict(data))
-    if(score > 0.5):
-        print("[{}]는 {:.2f}% 확률로 긍정 리뷰이지 않을까 추측해봅니다.^^\n".format(review, score * 100))
-    else:
-        print("[{}]는 {:.2f}% 확률로 부정 리뷰이지 않을까 추측해봅니다.^^;\n".format(review, (1 - score) * 100))
-#%%
-
-predict_pos_neg("올해 최고의 영화! 세 번 넘게 봐도 질리지가 않네요.")
