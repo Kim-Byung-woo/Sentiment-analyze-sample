@@ -42,9 +42,9 @@ def tagging(doc):
 # 기존에 태깅한 데이터가 있으면 불러옵니다.
 if os.path.isfile(file_dir + "/data/train_docs.json"):
     print('Json File is already')
-    with open(file_dir + "/data/train_docs.json", encoding='UTF8') as f:
+    with open(file_dir + "/data/train_docs_ori.json", encoding='UTF8') as f:
         train_docs = json.load(f)
-    with open(file_dir + "/data/test_docs.json", encoding='UTF8') as f:
+    with open(file_dir + "/data/test_docs_ori.json", encoding='UTF8') as f:
         test_docs = json.load(f)
 else: # 태깅한 데이터 없는 경우 태깅 실시
     train_docs = [(tagging(row[1]), row[2]) for row in train_df.values]
@@ -117,6 +117,13 @@ for idx in range(len(test_docs)):
 # 라벨 데이터 전처리
 y_train = [c for _,c in train_docs] # train_docs에서 라벨 정보만 가져와 list comprehension 실행
 y_test = [c for _,c in test_docs] # test_docs에서 라벨 정보만 가져와 list comprehension 실행
+#%%
+x_train_a = np.asarray(x_train).astype('float32')
+x_test_a = np.asarray(x_test).astype('float32')
+
+y_train_a = np.asarray(y_train).astype('float32')
+y_test_a = np.asarray(y_test).astype('float32')
+
 
 x_train = np.asarray(x_train).astype('float32')
 x_test = np.asarray(x_test).astype('float32')

@@ -46,25 +46,40 @@ print('전처리 후 테스트용 데이터 개수: ', len(test_data))
 # 토큰화
 # 토큰(Token)이란 문법적으로 더 이상 나눌 수 없는 언어요소를 뜻합니다. 텍스트 토큰화(Text Tokenization)란 말뭉치(Corpus)로부터 토큰을 분리하는 작업을 뜻합니다.
 from konlpy.tag import *
-
+import json
+okt = Okt() 
 stopwords = ['의', '가', '이', '은', '들', '는', '좀', '잘', '걍', '과', '도', '를', '으로', '자', '에', '와', '한', '하다']
 
-okt = Okt() 
-X_train = [] 
-for sentence in train_data['document']: 
-    temp_X = [] 
-    temp_X = okt.morphs(sentence, stem=True) # 토큰화 
-    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
-    X_train.append(temp_X)
-
-X_test = [] 
-for sentence in test_data['document']: 
-    temp_X = [] 
-    temp_X = okt.morphs(sentence, stem=True) # 토큰화 
-    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
-    X_test.append(temp_X)
+# 기존에 태깅한 데이터가 있으면 불러옵니다.
+if os.path.isfile(file_dir + "/data/train_wiki.json"):
+    print('Json File is already')
+    with open(file_dir + "/data/train_wiki.json", encoding='UTF8') as f:
+        X_train = json.load(f)
+    with open(file_dir + "/data/test_wiki.json", encoding='UTF8') as f:
+        X_test = json.load(f)
+else: # 태깅한 데이터 없는 경우 태깅 실시
+    X_train = [] 
+    for sentence in train_data['document']: 
+        temp_X = [] 
+        temp_X = okt.morphs(sentence, stem=True) # 토큰화 
+        temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
+        X_train.append(temp_X)
+    
+    X_test = [] 
+    for sentence in test_data['document']: 
+        temp_X = [] 
+        temp_X = okt.morphs(sentence, stem=True) # 토큰화 
+        temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거 
+        X_test.append(temp_X)
+    
+    # JSON 파일로 저장
+    with open(file_dir + "/data/train_wiki.json", 'w', encoding="utf-8") as make_file:
+        json.dump(X_train, make_file, ensure_ascii=False, indent="\t")
+    with open(file_dir + "/data/test_wiki.json", 'w', encoding="utf-8") as make_file:
+        json.dump(X_test, make_file, ensure_ascii=False, indent="\t")
+        
 #%%
-# 토큰화 된 단어 정수 인코딩
+# 토큰화 된 단어 정수 인코딩 - 텍스트를 숫자로 처리할 수 있도록
 tokenizer = Tokenizer()
 tokenizer.fit_on_texts(X_train)
 print(tokenizer.word_index) # 총 단어가 43000개 넘게 존재
@@ -91,14 +106,20 @@ print('등장 빈도가 %s번 이하인 희귀 단어의 수: %s'%(threshold - 1
 print("단어 집합에서 희귀 단어의 비율:", (rare_cnt / total_cnt)*100)
 print("전체 등장 빈도에서 희귀 단어 등장 빈도 비율:", (rare_freq / total_freq)*100) 
 
-# 전체 단어 개수 중 빈도수 2이하인 단어 개수는 제거.
+# 전체 단어 개수 중 빈도수 3미만인 단어 개수는 제거.
+# 단어가 43000개 중 상위 희귀단어(빈도가 3미만)는 제거가 되어 문장에서 희귀단어는 OOV(Out of Vocabulary )로 처리가 됩니다.
+# ex. 빈도수가 높은 상위단어 개수가 5개이면 vocab_size(5) + 2 합니다
+# +1은 인덱스의 시작이 1이라서, +1은 oov의 인덱스를 1로 설정하기 위해서 따라서 상위 빈도수 단어를 사용하기 위해서는 vocab_size + 2 합니다
 vocab_size = total_cnt - rare_cnt + 2 # 0번 패딩 토큰과 1번 OOV 토큰을 고려하여 +2
 print('단어 집합의 크기 :',vocab_size)
 
-tokenizer = Tokenizer(vocab_size, oov_token = 'OOV') # OOV: Out of Vocabulary
+# 토큰화 된 단어 정수 인코딩 - 텍스트를 숫자로 처리할 수 있도록
+tokenizer = Tokenizer(vocab_size, oov_token = 'OOV') 
 tokenizer.fit_on_texts(X_train)
-X_train = tokenizer.texts_to_sequences(X_train)
-X_test = tokenizer.texts_to_sequences(X_test)
+print(tokenizer.word_index)
+
+X_train = tokenizer.texts_to_sequences(X_train) # X_train안에 텍스트 데이터를 숫자의 시퀀스 형태로 변환합니다.
+X_test = tokenizer.texts_to_sequences(X_test) # X_test 텍스트 데이터를 숫자의 시퀀스 형태로 변환합니다.
 
 y_train = np.array(train_data['label'])
 y_test = np.array(test_data['label'])
@@ -130,13 +151,14 @@ def below_threshold_len(max_len, nested_list):
 max_len = 35
 below_threshold_len(max_len, X_train)
 
+X_train = pad_sequences(X_train, maxlen = max_len)
+X_test = pad_sequences(X_test, maxlen = max_len)
 # %%
 # 모델 생성 및 훈련
 # LSTM 모델로 영화 리부 감성 분류
 from keras.layers import Embedding, Dense, LSTM 
 from keras.models import Sequential
 from tensorflow.keras.models import load_model
-from keras.preprocessing.sequence import pad_sequences 
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 model = Sequential()
@@ -157,3 +179,15 @@ loaded_model = load_model('best_model.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(X_test, y_test)[1]))
 
 # %%
+def sentiment_predict(new_sentence):
+  new_sentence = okt.morphs(new_sentence, stem=True) # 토큰화
+  new_sentence = [word for word in new_sentence if not word in stopwords] # 불용어 제거
+  encoded = tokenizer.texts_to_sequences([new_sentence]) # 정수 인코딩
+  pad_new = pad_sequences(encoded, maxlen = max_len) # 패딩
+  score = float(loaded_model.predict(pad_new)) # 예측
+  if(score > 0.5):
+    print("{:.2f}% 확률로 긍정 리뷰입니다.\n".format(score * 100))
+  else:
+    print("{:.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
+    
+sentiment_predict('이 영화 개꿀잼 ㅋㅋㅋ')
