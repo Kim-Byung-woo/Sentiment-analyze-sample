@@ -14,21 +14,31 @@ import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출 - 코드 파일과 단어 리스트 파일 위치가 틀려서
 
-train_df = pd.read_table(file_dir + "/data/ratings_train.txt")
-test_df = pd.read_table(file_dir + "/data/ratings_test.txt")
+df_train = pd.read_table(file_dir + "/data/ratings_train.txt")
+df_test = pd.read_table(file_dir + "/data/ratings_test.txt")
 #%%
-train_df.isnull().any() #document에 null값이 있다.
-train_df['document'] = train_df['document'].fillna(''); #null값을 ''값으로 대체
+# 텍스트 전처리
+# 훈련용 리뷰 데이터 중 중복값 제거
+df_train.drop_duplicates(subset=['document'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
+# 훈련용 리뷰 데이터 중 한글과 공백을 제외하고 모두 제거
+df_train['document'] = df_train['document'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
+# 훈련용 리뷰 데이터 중 모두 제거된 데이터는 Nan값으로 대체
+df_train['document'].replace('', np.nan, inplace=True)
+# 훈련용 리뷰 데이터 중 Nan값 제거
+df_train = df_train.dropna(how = 'any') # Null 값이 존재하는 행 제거
+print(df_train.isnull().values.any()) # Null 값이 존재하는지 확인
+print('전처리 후 훈련용 데이터 개수: ', len(df_train))
 
-test_df.isnull().any()
-test_df['document'] = test_df['document'].fillna(''); #null값을 ''값으로 대체
-#%%
-# 데이터 개수가 너무 많아 임의로 축소
-train_df = train_df.head(2000)
-test_df = test_df.head(100)
-
-print('훈련 데이터 리뷰 개수 :',len(train_df)) # 리뷰 개수 출력
-print('테스트 데이터 리뷰 개수 :',len(test_df)) # 리뷰 개수 출력
+# 테스트용 리뷰 데이터 중 중복값 제거
+df_test.drop_duplicates(subset=['document'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
+#테스트용  리뷰 데이터 중 한글과 공백을 제외하고 모두 제거
+df_test['document'] = df_test['document'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
+#테스트용  리뷰 데이터 중 모두 제거된 데이터는 Nan값으로 대체
+df_test['document'].replace('', np.nan, inplace=True)
+#테스트용  리뷰 데이터 중 Nan값 제거
+df_test = df_test.dropna(how = 'any') # Nan 값이 존재하는 행 제거
+print(df_test.isnull().values.any()) # Nan 값이 존재하는지 확인
+print('전처리 후 테스트용 데이터 개수: ', len(df_test))
 #%%
 import json
 
@@ -40,15 +50,15 @@ def tagging(doc):
     return ['/'.join(t) for t in okt.pos(doc, norm=True, stem=True)] # norm: 정규화 -> 표현이 방법이 다른 단어들을 통합시켜 같은 단어로 만듭니다. stem: 단어의 어간 추출
 
 # 기존에 태깅한 데이터가 있으면 불러옵니다.
-if os.path.isfile(file_dir + "/data/train_docs.json"):
+if os.path.isfile(file_dir + "/data/train_docs_ori.json"):
     print('Json File is already')
     with open(file_dir + "/data/train_docs_ori.json", encoding='UTF8') as f:
         train_docs = json.load(f)
     with open(file_dir + "/data/test_docs_ori.json", encoding='UTF8') as f:
         test_docs = json.load(f)
 else: # 태깅한 데이터 없는 경우 태깅 실시
-    train_docs = [(tagging(row[1]), row[2]) for row in train_df.values]
-    test_docs = [(tagging(row[1]), row[2]) for row in test_df.values]
+    train_docs = [(tagging(row[1]), row[2]) for row in df_train.values]
+    test_docs = [(tagging(row[1]), row[2]) for row in df_test.values]
 
     # JSON 파일로 저장
     with open(file_dir + "/data/train_docs.json", 'w', encoding="utf-8") as make_file:
@@ -59,7 +69,6 @@ else: # 태깅한 데이터 없는 경우 태깅 실시
 from pprint import pprint
 pprint(train_docs[0])
 #%%
-
 # 분석한 데이터의 토큰(문자열을 분석을 위한 작은 단위)의 갯수를 확인
 tokens = [t for d in train_docs for t in d[0]]
 print("토큰개수:", len(tokens))
@@ -69,21 +78,17 @@ text = nltk.Text(tokens, name='NMSC')
 
 #토큰개수
 print(len(text.tokens))
-
 #중복을 제외한 토큰개수
 print(len(set(text.tokens)))
-
 #출력빈도가 높은 상위 토큰 20개
 print(text.vocab().most_common(20))
-
 
 from matplotlib import font_manager, rc
 plt.rc('font', family='Malgun Gothic') # Window 의 한글 폰트 설정
 plt.figure(figsize=(20,10))
 text.plot(20)
-
 #%%
-FREQUENCY_COUNT = 1000; # 시간적 여유가 있다면 10000개를 해보기
+FREQUENCY_COUNT = 10000
 selected_words = [f[0] for f in text.vocab().most_common(FREQUENCY_COUNT)] # 빈도수가 높은 1000개 단어 추출
 
 # 단어리스트 문서에서 상위 1000개들중 포함되는 단어들이 개수
@@ -118,13 +123,6 @@ for idx in range(len(test_docs)):
 y_train = [c for _,c in train_docs] # train_docs에서 라벨 정보만 가져와 list comprehension 실행
 y_test = [c for _,c in test_docs] # test_docs에서 라벨 정보만 가져와 list comprehension 실행
 #%%
-x_train_a = np.asarray(x_train).astype('float32')
-x_test_a = np.asarray(x_test).astype('float32')
-
-y_train_a = np.asarray(y_train).astype('float32')
-y_test_a = np.asarray(y_test).astype('float32')
-
-
 x_train = np.asarray(x_train).astype('float32')
 x_test = np.asarray(x_test).astype('float32')
 
@@ -173,4 +171,9 @@ else:
 
 #%%
 #모델 저장
-model.save('movie_review_model.h5')
+model.save('movie_review_model_naver.h5')
+#%%
+# 모델 불러오기
+from tensorflow.keras.models import load_model
+loaded_model = load_model('movie_review_model_naver.h5')
+print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(x_test, y_test)[1]))

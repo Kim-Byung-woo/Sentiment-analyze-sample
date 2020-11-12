@@ -133,7 +133,7 @@ y_train = np.delete(y_train, drop_train, axis=0)
 print(len(X_train))
 print(len(y_train))
 #%%
-# 패딩
+# 패딩: 여러 문장의 길이를 임의로 동일하게 맞춰주는 작업
 print('리뷰의 최대 길이 :',max(len(l) for l in X_train))
 print('리뷰의 평균 길이 :',sum(map(len, X_train))/len(X_train))
 plt.hist([len(s) for s in X_train], bins=50)
@@ -151,6 +151,7 @@ def below_threshold_len(max_len, nested_list):
 max_len = 35
 below_threshold_len(max_len, X_train)
 
+# 케라스 전처리 도구로 패딩하기
 X_train = pad_sequences(X_train, maxlen = max_len)
 X_test = pad_sequences(X_test, maxlen = max_len)
 # %%
@@ -167,7 +168,7 @@ model.add(LSTM(128))
 model.add(Dense(1, activation='sigmoid'))
 
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=4)
-mc = ModelCheckpoint('best_model.h5', monitor='val_acc', mode='max', verbose=1, save_best_only=True)
+mc = ModelCheckpoint('movie_review_model_wiki.h5', monitor='val_acc', mode='max', verbose=1, save_best_only=True)
 
 model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['acc'])
 # 모델 훈련
@@ -175,7 +176,7 @@ history = model.fit(X_train, y_train, epochs=15, callbacks=[es, mc], batch_size=
 
 #%%
 # 모델 검증
-loaded_model = load_model('best_model.h5')
+loaded_model = load_model('movie_review_model_wiki.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(X_test, y_test)[1]))
 
 # %%
@@ -186,8 +187,10 @@ def sentiment_predict(new_sentence):
   pad_new = pad_sequences(encoded, maxlen = max_len) # 패딩
   score = float(loaded_model.predict(pad_new)) # 예측
   if(score > 0.5):
-    print("{:.2f}% 확률로 긍정 리뷰입니다.\n".format(score * 100))
+    print(new_sentence, end = '')
+    print("는 {:.2f}% 확률로 긍정 리뷰입니다.\n".format(score * 100))
   else:
-    print("{:.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
+    print(new_sentence, end = '')
+    print("{는 :.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
     
 sentiment_predict('이 영화 개꿀잼 ㅋㅋㅋ')
