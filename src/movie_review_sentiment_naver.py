@@ -12,10 +12,19 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 # 데이터셋 로드
 import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
-file_dir = os.path.dirname(file_dir) # 상위 경로 추출 - 코드 파일과 단어 리스트 파일 위치가 틀려서
+file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 
+# 크롤링한 댓글 불러오기
+xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
+df_train = pd.read_excel(xlxs_dir)
+
+xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
+df_test = pd.read_excel(xlxs_dir)
+
+'''
 df_train = pd.read_table(file_dir + "/data/ratings_train.txt")
 df_test = pd.read_table(file_dir + "/data/ratings_test.txt")
+'''
 #%%
 # 텍스트 전처리
 # 훈련용 리뷰 데이터 중 중복값 제거
@@ -50,20 +59,20 @@ def tagging(doc):
     return ['/'.join(t) for t in okt.pos(doc, norm=True, stem=True)] # norm: 정규화 -> 표현이 방법이 다른 단어들을 통합시켜 같은 단어로 만듭니다. stem: 단어의 어간 추출
 
 # 기존에 태깅한 데이터가 있으면 불러옵니다.
-if os.path.isfile(file_dir + "/data/train_docs_ori.json"):
+if os.path.isfile(file_dir + "/data/train_naver.json"):
     print('Json File is already')
-    with open(file_dir + "/data/train_docs_ori.json", encoding='UTF8') as f:
+    with open(file_dir + "/data/train_naver.json", encoding='UTF8') as f:
         train_docs = json.load(f)
-    with open(file_dir + "/data/test_docs_ori.json", encoding='UTF8') as f:
+    with open(file_dir + "/data/test_naver.json", encoding='UTF8') as f:
         test_docs = json.load(f)
 else: # 태깅한 데이터 없는 경우 태깅 실시
     train_docs = [(tagging(row[1]), row[2]) for row in df_train.values]
     test_docs = [(tagging(row[1]), row[2]) for row in df_test.values]
 
     # JSON 파일로 저장
-    with open(file_dir + "/data/train_docs.json", 'w', encoding="utf-8") as make_file:
+    with open(file_dir + "/data/train_naver.json", 'w', encoding="utf-8") as make_file:
         json.dump(train_docs, make_file, ensure_ascii=False, indent="\t")
-    with open(file_dir + "/data/test_docs.json", 'w', encoding="utf-8") as make_file:
+    with open(file_dir + "/data/test_naver.json", 'w', encoding="utf-8") as make_file:
         json.dump(test_docs, make_file, ensure_ascii=False, indent="\t")
         
 from pprint import pprint
@@ -91,7 +100,7 @@ text.plot(20)
 FREQUENCY_COUNT = 10000
 selected_words = [f[0] for f in text.vocab().most_common(FREQUENCY_COUNT)] # 빈도수가 높은 1000개 단어 추출
 
-# 단어리스트 문서에서 상위 1000개들중 포함되는 단어들이 개수
+# 단어리스트 문서에서 상위 10000개들중 포함되는 단어들이 개수
 def term_frequency(doc):
     return [doc.count(word) for word in selected_words]
 
@@ -122,7 +131,7 @@ for idx in range(len(test_docs)):
 # 라벨 데이터 전처리
 y_train = [c for _,c in train_docs] # train_docs에서 라벨 정보만 가져와 list comprehension 실행
 y_test = [c for _,c in test_docs] # test_docs에서 라벨 정보만 가져와 list comprehension 실행
-#%%
+
 x_train = np.asarray(x_train).astype('float32')
 x_test = np.asarray(x_test).astype('float32')
 
@@ -150,24 +159,30 @@ model.fit(x_train, y_train, epochs=10, batch_size=512)
 results = model.evaluate(x_test, y_test)
 #%%
 # 모델 예측
-review = "개노잼이네"
-token = tagging(review)
-tfq = term_frequency(token)
-tfq_arr = np.asarray(tfq).astype('float32')
+label_okt = []
 
-# x_test->는 2차원 tfq_arr-> 1차원입니다.
-# 데이터 형태를 맞춰 주기 위해 np.expand_dims 사용 
-data = np.expand_dims(tfq_arr, axis=0) # expand_dims를 사용하여 tfq_arr을 2차원으로 변환
-
-'''
-# 데이터 형태를 맞춰 주기 위해 np.expand_dims 사용
-data = np.reshape(tfq_arr, (1, len(tfq_arr)))
-'''
-score = float(model.predict(data))
-if(score > 0.5):
-    print(f"{review} ==> 긍정 ({round(score*100)}%)")
-else:
-    print(f"{review} ==> 부정 ({round((1-score)*100)}%)")
+def sentiment_predict(new_sentence):
+    token = tagging(new_sentence)
+    tfq = term_frequency(token)
+    tfq_arr = np.asarray(tfq).astype('float32')
+    
+    # x_test->는 2차원 tfq_arr-> 1차원입니다.
+    # 데이터 형태를 맞춰 주기 위해 np.expand_dims 사용 
+    data = np.expand_dims(tfq_arr, axis=0) # expand_dims를 사용하여 tfq_arr을 2차원으로 변환
+    
+    '''
+    # 데이터 형태를 맞춰 주기 위해 np.expand_dims 사용
+    data = np.reshape(tfq_arr, (1, len(tfq_arr)))
+    '''
+    score = float(model.predict(data))
+    if(score > 0.5):
+        print(f"{new_sentence} ==> 긍정 ({round(score*100)}%)")
+        label_okt.append(1)
+    else:
+        print(f"{new_sentence} ==> 부정 ({round((1-score)*100)}%)")
+        label_okt.append(0)
+      
+sentiment_predict('이거 너무 재미 없다')        
 
 #%%
 #모델 저장
@@ -177,3 +192,60 @@ model.save('movie_review_model_naver.h5')
 from tensorflow.keras.models import load_model
 loaded_model = load_model('movie_review_model_naver.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(x_test, y_test)[1]))
+#%%
+file_dir = os.getcwd() # 현재 파일 경로 추출
+file_dir = os.path.dirname(file_dir) # 상위 경로 추출
+
+xlxs_dir = file_dir + '/data/최강 참치 삼각김밥_video_info.xlsx'
+df_comment = pd.read_excel(xlxs_dir, sheet_name = 'comment')
+
+# 데이터 개수 확인
+print('댓글 개수 :',len(df_comment)) # 리뷰 개수 출력
+# %%
+# 텍스트 전처리
+# 댓글 중 중복값 제거
+df_comment.drop_duplicates(subset=['comment'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
+# 댓글 중 한글과 공백을 제외하고 모두 제거
+df_comment['comment'] = df_comment['comment'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
+# 댓글 중 공백만 있는 경우 제거
+df_comment['comment'] = df_comment['comment'].str.strip() 
+# 댓글 중 모두 제거된 데이터는 Nan값으로 대체
+df_comment['comment'].replace('', np.nan, inplace=True)
+
+# 훈련용 리뷰 데이터 중 Nan값 제거
+df_comment = df_comment.dropna(how = 'any') # Null 값이 존재하는 행 제거
+print(df_comment.isnull().values.any()) # Null 값이 존재하는지 확인
+print('전처리 후 댓글 개수: ', len(df_comment))
+
+df_comment.reset_index(inplace = True) # 행제거 인덱스도 같이 삭제되어 for문을 돌리기 위해서 인덱스 컬럼 초기화
+df_comment = df_comment[['comment id', 'comment']] # 기존 인덱스 컬럼 삭제
+#%%
+label_okt = []
+
+for idx in range(len(df_comment)):
+    sentece = df_comment['comment'][idx]
+    sentiment_predict(sentece)
+
+df_comment['label'] = label_okt
+
+# 감정분석 결과 저장
+df_comment.to_excel(file_dir + '/data/comment_base_result_naver' +'.xlsx')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

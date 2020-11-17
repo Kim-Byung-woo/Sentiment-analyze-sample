@@ -13,8 +13,17 @@ import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 
+# 크롤링한 댓글 불러오기
+xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
+train_data = pd.read_excel(xlxs_dir)
+
+xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
+test_data = pd.read_excel(xlxs_dir)
+
+'''
 train_data = pd.read_table(file_dir + "/data/ratings_train.txt")
 test_data = pd.read_table(file_dir + "/data/ratings_test.txt")
+'''
 #%%
 # 데이터 개수 확인
 print('훈련 데이터 리뷰 개수 :',len(train_data)) # 리뷰 개수 출력
@@ -148,7 +157,7 @@ def below_threshold_len(max_len, nested_list):
         cnt = cnt + 1
   print('전체 샘플 중 길이가 %s 이하인 샘플의 비율: %s'%(max_len, (cnt / len(nested_list))*100))
 
-max_len = 35
+max_len = 1000
 below_threshold_len(max_len, X_train)
 
 # 케라스 전처리 도구로 패딩하기
@@ -180,6 +189,7 @@ loaded_model = load_model('movie_review_model_wiki.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(X_test, y_test)[1]))
 
 # %%
+
 def sentiment_predict(new_sentence):
   new_sentence = okt.morphs(new_sentence, stem=True) # 토큰화
   new_sentence = [word for word in new_sentence if not word in stopwords] # 불용어 제거
@@ -189,8 +199,75 @@ def sentiment_predict(new_sentence):
   if(score > 0.5):
     print(new_sentence, end = '')
     print("는 {:.2f}% 확률로 긍정 리뷰입니다.\n".format(score * 100))
-  else:
+    label_okt.append(1)
+  else :
     print(new_sentence, end = '')
-    print("{는 :.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
-    
-sentiment_predict('이 영화 개꿀잼 ㅋㅋㅋ')
+    print("는{:.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
+    label_okt.append(0)
+
+#%%
+# 데이터셋 로드
+file_dir = os.getcwd() # 현재 파일 경로 추출
+file_dir = os.path.dirname(file_dir) # 상위 경로 추출
+
+xlxs_dir = file_dir + '/data/최강 참치 삼각김밥_video_info.xlsx'
+df_comment = pd.read_excel(xlxs_dir, sheet_name = 'comment')
+
+# 데이터 개수 확인
+print('댓글 개수 :',len(df_comment)) # 리뷰 개수 출력
+# %%
+# 텍스트 전처리
+# 댓글 중 중복값 제거
+df_comment.drop_duplicates(subset=['comment'], inplace=True) # document 열에서 중복인 내용이 있다면 중복 제거
+# 댓글 중 한글과 공백을 제외하고 모두 제거
+df_comment['comment'] = df_comment['comment'].str.replace("[^ㄱ-ㅎㅏ-ㅣ가-힣 ]","")
+# 댓글 중 공백만 있는 경우 제거
+df_comment['comment'] = df_comment['comment'].str.strip() 
+# 댓글 중 모두 제거된 데이터는 Nan값으로 대체
+df_comment['comment'].replace('', np.nan, inplace=True)
+
+# 훈련용 리뷰 데이터 중 Nan값 제거
+df_comment = df_comment.dropna(how = 'any') # Null 값이 존재하는 행 제거
+print(df_comment.isnull().values.any()) # Null 값이 존재하는지 확인
+print('전처리 후 댓글 개수: ', len(df_comment))
+
+df_comment.reset_index(inplace = True) # 행제거 인덱스도 같이 삭제되어 for문을 돌리기 위해서 인덱스 컬럼 초기화
+df_comment = df_comment[['comment id', 'comment']] # 기존 인덱스 컬럼 삭제
+#%%
+label_okt = []
+
+for idx in range(len(df_comment)):
+    sentece = df_comment['comment'][idx]
+    sentiment_predict(sentece)
+
+df_comment['label'] = label_okt
+
+# 감정분석 결과 저장
+df_comment.to_excel(file_dir + '/data/movie_base_result_wiki' +'.xlsx')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
