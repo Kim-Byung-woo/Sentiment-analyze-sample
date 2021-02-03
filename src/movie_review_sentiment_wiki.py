@@ -8,16 +8,15 @@ from konlpy.tag import Okt
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import os
-# %%
-# 데이터셋 로드
+
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 #%%
 # 크롤링한 댓글 불러오기
-xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
+xlxs_dir = file_dir + '/data/comment_train.xlsx'
 train_data = pd.read_excel(xlxs_dir)
 
-xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
+xlxs_dir = file_dir + '/data/comment_test.xlsx'
 test_data = pd.read_excel(xlxs_dir)
 
 #%%

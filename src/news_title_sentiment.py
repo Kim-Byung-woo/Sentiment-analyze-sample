@@ -12,8 +12,8 @@ import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출 - 코드 파일과 단어 리스트 파일 위치가 틀려서
 
-train_data = pd.read_csv(file_dir + "/data/train_dataset_1007.csv") 
-test_data = pd.read_csv(file_dir + "/data/test_dataset_1007.csv")
+train_data = pd.read_csv(file_dir + "/data/news_title_train.csv") 
+test_data = pd.read_csv(file_dir + "/data/news_title_test.csv")
 #%%
 train_data['label'].value_counts().plot(kind='bar')
 test_data['label'].value_counts().plot(kind='bar')

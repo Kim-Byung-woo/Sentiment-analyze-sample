@@ -8,21 +8,17 @@ import urllib.request
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# %%
-# 데이터셋 로드
 import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
-
-'''
+#%%
 # 크롤링한 댓글 불러오기
-xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
+xlxs_dir = file_dir + '/data/comment_train.xlsx'
 df_train = pd.read_excel(xlxs_dir)
 
-xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
+xlxs_dir = file_dir + '/data/comment_test.xlsx'
 df_test = pd.read_excel(xlxs_dir)
-'''
-
+#%%
 df_train = pd.read_table(file_dir + "/data/ratings_train.txt")
 df_test = pd.read_table(file_dir + "/data/ratings_test.txt")
 #%%
