@@ -14,17 +14,17 @@ import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 
+'''
 # 크롤링한 댓글 불러오기
 xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
 df_train = pd.read_excel(xlxs_dir)
 
 xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
 df_test = pd.read_excel(xlxs_dir)
-
 '''
+
 df_train = pd.read_table(file_dir + "/data/ratings_train.txt")
 df_test = pd.read_table(file_dir + "/data/ratings_test.txt")
-'''
 #%%
 # 텍스트 전처리
 # 훈련용 리뷰 데이터 중 중복값 제거
@@ -97,7 +97,7 @@ plt.rc('font', family='Malgun Gothic') # Window 의 한글 폰트 설정
 plt.figure(figsize=(20,10))
 text.plot(20)
 #%%
-FREQUENCY_COUNT = 10000
+FREQUENCY_COUNT = 1000
 selected_words = [f[0] for f in text.vocab().most_common(FREQUENCY_COUNT)] # 빈도수가 높은 1000개 단어 추출
 
 # 단어리스트 문서에서 상위 10000개들중 포함되는 단어들이 개수
@@ -160,6 +160,7 @@ results = model.evaluate(x_test, y_test)
 #%%
 # 모델 예측
 label_okt = []
+list_accuracy = []
 
 def sentiment_predict(new_sentence):
     token = tagging(new_sentence)
@@ -178,11 +179,21 @@ def sentiment_predict(new_sentence):
     if(score > 0.5):
         print(f"{new_sentence} ==> 긍정 ({round(score*100)}%)")
         label_okt.append(1)
+        accuracy = score * 100
+        accuracy = round(accuracy, 2)
+        list_accuracy.append(accuracy)
     else:
         print(f"{new_sentence} ==> 부정 ({round((1-score)*100)}%)")
         label_okt.append(0)
+        accuracy = score * 100
+        accuracy = round(accuracy, 2)
+        list_accuracy.append(accuracy)
       
-sentiment_predict('이거 너무 재미 없다')        
+sentiment_predict("올해 최고의 영화! 세 번 넘게 봐도 질리지가 않네요.")
+sentiment_predict("배경 음악이 영화의 분위기랑 너무 안 맞았습니다. 몰입에 방해가 됩니다.")
+sentiment_predict("주연 배우가 신인인데 연기를 진짜 잘 하네요. 몰입감 ㅎㄷㄷ")
+sentiment_predict("믿고 보는 감독이지만 이번에는 아니네요")
+sentiment_predict("주연배우 때문에 봤어요")    
 
 #%%
 #모델 저장
@@ -193,10 +204,12 @@ from tensorflow.keras.models import load_model
 loaded_model = load_model('movie_review_model_naver.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(x_test, y_test)[1]))
 #%%
+# 데이터셋 로드
+import os
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 
-xlxs_dir = file_dir + '/data/최강 참치 삼각김밥_video_info.xlsx'
+xlxs_dir = file_dir + '/data/엘론_video_info.xlsx'
 df_comment = pd.read_excel(xlxs_dir, sheet_name = 'comment')
 
 # 데이터 개수 확인
@@ -221,15 +234,17 @@ df_comment.reset_index(inplace = True) # 행제거 인덱스도 같이 삭제되
 df_comment = df_comment[['comment id', 'comment']] # 기존 인덱스 컬럼 삭제
 #%%
 label_okt = []
+list_accuracy = []
 
 for idx in range(len(df_comment)):
     sentece = df_comment['comment'][idx]
     sentiment_predict(sentece)
 
 df_comment['label'] = label_okt
+df_comment['accuracy'] = list_accuracy
 
 # 감정분석 결과 저장
-df_comment.to_excel(file_dir + '/data/comment_base_result_naver' +'.xlsx')
+df_comment.to_excel(file_dir + '/data/movie_base_result_naver' +'.xlsx')
 
 
 
@@ -249,3 +264,5 @@ df_comment.to_excel(file_dir + '/data/comment_base_result_naver' +'.xlsx')
 
 
 
+
+# %%

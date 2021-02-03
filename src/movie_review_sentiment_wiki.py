@@ -12,7 +12,7 @@ import os
 # 데이터셋 로드
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
-
+#%%
 # 크롤링한 댓글 불러오기
 xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_train.xlsx'
 train_data = pd.read_excel(xlxs_dir)
@@ -20,10 +20,10 @@ train_data = pd.read_excel(xlxs_dir)
 xlxs_dir = file_dir + '/data/label_comment_crwaling_sample_test.xlsx'
 test_data = pd.read_excel(xlxs_dir)
 
-'''
+#%%
+# 영화 리뷰 데이터 불러오기
 train_data = pd.read_table(file_dir + "/data/ratings_train.txt")
 test_data = pd.read_table(file_dir + "/data/ratings_test.txt")
-'''
 #%%
 # 데이터 개수 확인
 print('훈련 데이터 리뷰 개수 :',len(train_data)) # 리뷰 개수 출력
@@ -157,7 +157,7 @@ def below_threshold_len(max_len, nested_list):
         cnt = cnt + 1
   print('전체 샘플 중 길이가 %s 이하인 샘플의 비율: %s'%(max_len, (cnt / len(nested_list))*100))
 
-max_len = 1000
+max_len = 70 # movie review: 35, comment: 70
 below_threshold_len(max_len, X_train)
 
 # 케라스 전처리 도구로 패딩하기
@@ -168,7 +168,6 @@ X_test = pad_sequences(X_test, maxlen = max_len)
 # LSTM 모델로 영화 리부 감성 분류
 from keras.layers import Embedding, Dense, LSTM 
 from keras.models import Sequential
-from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 model = Sequential()
@@ -185,32 +184,39 @@ history = model.fit(X_train, y_train, epochs=15, callbacks=[es, mc], batch_size=
 
 #%%
 # 모델 검증
+from tensorflow.keras.models import load_model
 loaded_model = load_model('movie_review_model_wiki.h5')
 print("\n 테스트 정확도: %.4f" % (loaded_model.evaluate(X_test, y_test)[1]))
-
 # %%
+list_accuracy = []
 
 def sentiment_predict(new_sentence):
-  new_sentence = okt.morphs(new_sentence, stem=True) # 토큰화
-  new_sentence = [word for word in new_sentence if not word in stopwords] # 불용어 제거
-  encoded = tokenizer.texts_to_sequences([new_sentence]) # 정수 인코딩
+  new_morphs = okt.morphs(new_sentence, stem=True) # 토큰화
+  new_morphs = [word for word in new_morphs if not word in stopwords] # 불용어 제거
+  encoded = tokenizer.texts_to_sequences([new_morphs]) # 정수 인코딩
   pad_new = pad_sequences(encoded, maxlen = max_len) # 패딩
   score = float(loaded_model.predict(pad_new)) # 예측
   if(score > 0.5):
     print(new_sentence, end = '')
     print("는 {:.2f}% 확률로 긍정 리뷰입니다.\n".format(score * 100))
     label_okt.append(1)
+    accuracy = score * 100
+    accuracy = round(accuracy, 2)
+    list_accuracy.append(accuracy)
   else :
     print(new_sentence, end = '')
     print("는{:.2f}% 확률로 부정 리뷰입니다.\n".format((1 - score) * 100))
     label_okt.append(0)
+    accuracy = (1 - score) * 100 
+    accuracy = round(accuracy, 2)
+    list_accuracy.append(accuracy)
 
 #%%
 # 데이터셋 로드
 file_dir = os.getcwd() # 현재 파일 경로 추출
 file_dir = os.path.dirname(file_dir) # 상위 경로 추출
 
-xlxs_dir = file_dir + '/data/최강 참치 삼각김밥_video_info.xlsx'
+xlxs_dir = file_dir + '/data/엘론_video_info.xlsx'
 df_comment = pd.read_excel(xlxs_dir, sheet_name = 'comment')
 
 # 데이터 개수 확인
@@ -235,12 +241,14 @@ df_comment.reset_index(inplace = True) # 행제거 인덱스도 같이 삭제되
 df_comment = df_comment[['comment id', 'comment']] # 기존 인덱스 컬럼 삭제
 #%%
 label_okt = []
+list_accuracy = []
 
 for idx in range(len(df_comment)):
     sentece = df_comment['comment'][idx]
     sentiment_predict(sentece)
 
 df_comment['label'] = label_okt
+df_comment['accuracy'] = list_accuracy
 
 # 감정분석 결과 저장
 df_comment.to_excel(file_dir + '/data/movie_base_result_wiki' +'.xlsx')
@@ -271,3 +279,5 @@ df_comment.to_excel(file_dir + '/data/movie_base_result_wiki' +'.xlsx')
 
 
 
+
+# %%
