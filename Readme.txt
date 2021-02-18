@@ -1,21 +1,27 @@
 news title.py
-- 크롤링  댓글 라벨링
-- 훈련/테스트 데이터 분류
-- 모델 학습
-- 테스트 데이터 감성분석 -> 라벨링과 얼마나 차이가 있는지 비교 -> 여기서 말하는 정확도는 기존 라벨링과의 정확도이지 긍정/부정의 정확도가 아님. 따라서 사용하기 어려움
+ - 크롤링  댓글 라벨링
+ - 훈련/테스트 데이터 분류
+ - 모델 학습
+ - 테스트 데이터 감성분석 -> 라벨링과 얼마나 차이가 있는지 비교 -> 여기서 말하는 정확도는 기존 라벨링과의 정확도이지 긍정/부정의 정확도가 아님. 따라서 사용하기 어려움
 
-comment_labeling_dictionary.py
-- 구축한 단어사전을 기반으로 하여 크롤링 댓글 라벨링
+sentiment_analyze_movie_review_naver.py
+ - 영화 리뷰 데이터 (ratings_train, ratings_test)불러오기
+ - 영화 리뷰 기반 감성분석 모델 생성
+ - 실제 유튜브 댓글 데이터 감성분석 결과 저장
 
-movie_review_sentiment_naver.py(https://cyc1am3n.github.io/2018/11/10/classifying_korean_movie_review.html 참조)
-- 네이버 영화 리뷰 데이터를 토대로 모델을 생성
-- 라벨링 댓글 데이터 토대로 모델 생성
-- 샘플 데이터(라벨링 하지 않은 크롤링 댓글) 감성분석
+labeling_comment_dictionary.py
+ - 긍정 2만(comment_crwaling_sample_neg.xlsx), 부정 2만개(comment_crwaling_sample_neg.xlsx) 데이터 불러오기
+ - 라벨링(0: negative 1: positve 2: none) 진행 및 결과 저장
 
-movie_review_sentiment_wiki.py(https://wikidocs.net/44249, 위키독스 - 딥러닝을 이용한 자연어 처리 입문 참조)
-- 네이버 영화 리뷰 데이터를 토대로 모델을 생성
-- 라벨링 댓글 데이터 토대로 모델 생성
-- 샘플 데이터(라벨링 하지 않은 크롤링 댓글) 감성분석
+sentiment_analyze_movie_review_wiki.py
+ - 영화 리뷰 데이터 (ratings_train, ratings_test)불러오기
+ - 영화 리뷰 기반 감성분석 모델 생성
+ - 실제 유튜브 댓글 데이터 감성분석 결과 저장
+
+sentiment_analyze_comment.py
+ - 전처리(중립(label = 2) 제거 -> 수작업으로 실시)된 댓글 데이터(comment_train, comment_test) 불러오기 
+ - 댓글 기반 감성분석 모델 생성
+ - 실제 유튜브 댓글 데이터 감성분석 결과 저장
 
 참고 사이트
 Sentiment Anlayze
