@@ -165,10 +165,10 @@ from keras.layers import Embedding, Dense, LSTM
 from keras.models import Sequential
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
-model = Sequential()
-model.add(Embedding(vocab_size, 100))
-model.add(LSTM(128))
-model.add(Dense(1, activation='sigmoid'))
+model = Sequential() # Sequential은 keras를 활용해 모델(입력층, 은닉층, 출력층)을 구축할 수 있는 가장 간단한 형태의 API
+model.add(Embedding(vocab_size, 100))  # 입력층, Embedding layer는 주로 자연어 처리에서 사용되며, 자연어를 수치화된 정보로 바꾸기 위한 layer
+model.add(LSTM(128)) # 은닉층, LSTM은 기존 RNN구조의 문제점을 해결한 layer, RNN: 은닉칭의 노드에서 활성화 함수를 통해 나온 결과값을 다시 은닉층의 다음 계산의 입력으로 보낸다. RNN은 자연어 처리에 좋은 신경망입니다.
+model.add(Dense(1, activation='sigmoid')) # 출력층, sigmoid: 이진 분류 문제에서 출력층에 주로 사용되는 활성화 함수.
 
 model_dir = file_dir + '/data/comment_model_wiki.h5'
 es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=4)
